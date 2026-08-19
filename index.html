@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>강 건너기 시뮬레이션</title>
+    <title>강 건너기 시뮬레이션 (이동 횟수 측정)</title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -16,21 +16,41 @@
             align-items: center;
         }
         h1 { margin-bottom: 5px; color: #333; }
-        .rules {
-            background-color: #fff;
-            padding: 15px 20px;
+        
+        .dashboard {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            background: #fff;
+            padding: 10px 25px;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            max-width: 600px;
-            margin-bottom: 20px;
+        }
+        .stat-item {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .stat-value {
+            color: #e67e22;
+            font-size: 18px;
+        }
+
+        .rules {
+            background-color: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-width: 750px;
+            margin-bottom: 15px;
             font-size: 14px;
             color: #555;
-            line-height: 1.5;
+            line-height: 1.4;
         }
         .game-container {
             display: flex;
             width: 750px;
-            height: 300px;
+            height: 280px;
             border: 2px solid #2980b9;
             border-radius: 12px;
             overflow: hidden;
@@ -66,17 +86,17 @@
         .item-list {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 8px;
             justify-content: center;
         }
         .item {
             background-color: #ffffff;
             border: 2px solid #7f8c8d;
             border-radius: 8px;
-            padding: 10px 15px;
+            padding: 8px 12px;
             cursor: pointer;
             user-select: none;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             transition: transform 0.1s, background-color 0.2s;
@@ -90,8 +110,8 @@
             background-color: #ffeaa7;
         }
         .boat {
-            width: 130px;
-            height: 70px;
+            width: 140px;
+            height: 65px;
             background-color: #d35400;
             border-radius: 0 0 35px 35px;
             display: flex;
@@ -100,16 +120,16 @@
             gap: 5px;
             border: 2px solid #a04000;
             box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            transition: all 0.5s ease-in-out;
+            transition: all 0.4s ease-in-out;
         }
         .controls {
-            margin-top: 20px;
+            margin-top: 15px;
             display: flex;
             gap: 15px;
         }
         button.btn {
-            padding: 10px 25px;
-            font-size: 16px;
+            padding: 10px 20px;
+            font-size: 15px;
             font-weight: bold;
             color: white;
             border: none;
@@ -124,7 +144,7 @@
         .btn-reset:hover { background-color: #c0392b; }
         .message-box {
             margin-top: 15px;
-            font-size: 18px;
+            font-size: 17px;
             font-weight: bold;
             height: 30px;
         }
@@ -134,17 +154,21 @@
 </head>
 <body>
 
-    <h1>강 건너기 퍼즐 시뮬레이션</h1>
+    <h1>강 건너기 시뮬레이션</h1>
     
+    <!-- 탐색 횟수 및 최고 기록 대시보드 -->
+    <div class="dashboard">
+        <div class="stat-item">현재 이동 횟수: <span id="moveCount" class="stat-value">0</span>회</div>
+        <div class="stat-item">최소 이동 성공 기록: <span id="bestRecord" class="stat-value">-</span></div>
+    </div>
+
     <div class="rules">
-        <strong>규칙:</strong><br>
-        1. 농부는 배에 염소, 양배추, 늑대 중 <strong>단 1가지</strong>만 태울 수 있습니다.<br>
-        2. 농부 없이 <strong>[늑대와 염소]</strong> 또는 <strong>[염소와 양배추]</strong>만 남겨지면 게임에서 패배합니다.<br>
-        3. 요소를 클릭하여 배에 태우거나 내릴 수 있습니다.
+        <strong>규칙:</strong> 농부는 1번에 단 1개의 동식물만 태울 수 있습니다. [늑대-염소] 또는 [염소-양배추]만 남겨지면 실패합니다.<br>
+        <strong>목표:</strong> 최단 이동 횟수(최소 7회)로 모두 B 지역으로 이동시키세요!
     </div>
 
     <div class="game-container">
-        <!-- A 지역 (왼쪽) -->
+        <!-- A 지역 -->
         <div class="bank" id="bankA">
             <div class="bank-title">A 지역</div>
             <div class="item-list" id="listA"></div>
@@ -155,7 +179,7 @@
             <div class="boat" id="boat"></div>
         </div>
 
-        <!-- B 지역 (오른쪽) -->
+        <!-- B 지역 -->
         <div class="bank" id="bankB">
             <div class="bank-title">B 지역</div>
             <div class="item-list" id="listB"></div>
@@ -163,14 +187,13 @@
     </div>
 
     <div class="controls">
-        <button class="btn btn-cross" id="crossBtn" onclick="crossRiver()">강 건너기</button>
-        <button class="btn btn-reset" onclick="initGame()">다시 시작</button>
+        <button class="btn btn-cross" id="crossBtn" onclick="crossRiver()">강 건너기 (이동)</button>
+        <button class="btn btn-reset" onclick="initGame()">다시 시작 (리셋)</button>
     </div>
 
     <div class="message-box" id="message"></div>
 
     <script>
-        // 게임 상태 정의
         const ITEMS = {
             FARMER: { id: 'farmer', name: '👨‍🌾 농부', class: 'farmer-item' },
             WOLF: { id: 'wolf', name: '🐺 늑대', class: '' },
@@ -182,9 +205,12 @@
             bankA: [],
             bankB: [],
             boat: [],
-            boatPosition: 'A', // 'A' 또는 'B'
-            isGameOver: false
+            boatPosition: 'A',
+            isGameOver: false,
+            moves: 0
         };
+
+        let bestRecord = null;
 
         function initGame() {
             state = {
@@ -192,8 +218,10 @@
                 bankB: [],
                 boat: [],
                 boatPosition: 'A',
-                isGameOver: false
+                isGameOver: false,
+                moves: 0
             };
+            document.getElementById('moveCount').innerText = state.moves;
             document.getElementById('message').innerText = '';
             document.getElementById('message').className = 'message-box';
             document.getElementById('crossBtn').disabled = false;
@@ -210,22 +238,18 @@
             listB.innerHTML = '';
             boatContainer.innerHTML = '';
 
-            // A지역 아이템 렌더링
             state.bankA.forEach(item => {
                 listA.appendChild(createItemElement(item, () => moveToBoat(item, 'A')));
             });
 
-            // B지역 아이템 렌더링
             state.bankB.forEach(item => {
                 listB.appendChild(createItemElement(item, () => moveToBoat(item, 'B')));
             });
 
-            // 배 내부 아이템 렌더링
             state.boat.forEach(item => {
                 boatContainer.appendChild(createItemElement(item, () => removeFromBoat(item)));
             });
 
-            // 배 위치 설정
             if (state.boatPosition === 'A') {
                 river.classList.remove('right-side');
             } else {
@@ -244,15 +268,14 @@
         function moveToBoat(item, bank) {
             if (state.isGameOver) return;
             if (state.boatPosition !== bank) {
-                showMessage('배가 반대편에 있습니다.', 'danger');
+                showMessage('배가 현재 반대편에 있습니다.', 'danger');
                 return;
             }
             if (state.boat.length >= 2) {
-                showMessage('배에는 최대 2명(농부 포함)만 탈 수 있습니다.', 'danger');
+                showMessage('배에는 농부 포함 최대 2명만 탈 수 있습니다.', 'danger');
                 return;
             }
 
-            // 이동 처리
             if (bank === 'A') {
                 state.bankA = state.bankA.filter(i => i.id !== item.id);
             } else {
@@ -279,41 +302,52 @@
         function crossRiver() {
             if (state.isGameOver) return;
 
-            // 조건: 농부가 배에 탑승해 있어야 강을 건널 수 있음
             const hasFarmer = state.boat.some(item => item.id === ITEMS.FARMER.id);
             if (!hasFarmer) {
                 showMessage('농부가 배에 타야 강을 건널 수 있습니다!', 'danger');
                 return;
             }
 
-            // 배 이동
+            // 배 이동 및 횟수 증가
             state.boatPosition = state.boatPosition === 'A' ? 'B' : 'A';
-            render();
+            state.moves++;
+            document.getElementById('moveCount').innerText = state.moves;
 
-            // 검증
+            render();
             checkGameState();
         }
 
         function checkGameState() {
+            // 농부가 없는 쪽에 남아있는 대상들 검증
             const currentBank = state.boatPosition === 'A' ? state.bankB : state.bankA;
             
             const hasWolf = currentBank.some(i => i.id === ITEMS.WOLF.id);
             const hasGoat = currentBank.some(i => i.id === ITEMS.GOAT.id);
             const hasCabbage = currentBank.some(i => i.id === ITEMS.CABBAGE.id);
 
-            // 실패 조건 판단 (농부가 없는 쪽에 남아있는 대상들)
             if (hasWolf && hasGoat) {
-                endGame(' 실패! 늑대가 염소를 잡아먹었습니다.', false);
+                endGame('실패! 늑대가 염소를 잡아먹었습니다.', false);
                 return;
             }
             if (hasGoat && hasCabbage) {
-                endGame(' 실패! 염소가 양배추를 먹어치웠습니다.', false);
+                endGame('실패! 염소가 양배추를 먹어치웠습니다.', false);
                 return;
             }
 
-            // 성공 조건 판단 (모두 B 지역으로 이동)
-            if (state.bankB.length + (state.boatPosition === 'B' ? state.boat.length : 0) === 4) {
-                endGame('🎉 축하합니다! 모두 안전하게 강을 건넜습니다!', true);
+            // 성공 판정 (A와 배에 아무도 없고 모든 요소가 B로 이동 완료)
+            if (state.bankA.length === 0 && state.boat.length === 0 && state.bankB.length === 4) {
+                let successMsg = `🎉 성공! 총 ${state.moves}번만에 건너갔습니다.`;
+                if (state.moves === 7) {
+                    successMsg += ' (최단 경로 성공!)';
+                }
+                
+                // 최고 기록 업데이트
+                if (bestRecord === null || state.moves < bestRecord) {
+                    bestRecord = state.moves;
+                    document.getElementById('bestRecord').innerText = `${bestRecord}회`;
+                }
+                
+                endGame(successMsg, true);
             }
         }
 
@@ -334,7 +368,6 @@
             msgBox.innerText = '';
         }
 
-        // 초기화 실행
         initGame();
     </script>
 </body>
