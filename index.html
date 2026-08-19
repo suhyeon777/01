@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>강 건너기 시뮬레이션</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 { margin-bottom: 5px; color: #333; }
+        .rules {
+            background-color: #fff;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #555;
+            line-height: 1.5;
+        }
+        .game-container {
+            display: flex;
+            width: 750px;
+            height: 300px;
+            border: 2px solid #2980b9;
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: #fff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+        .bank {
+            flex: 1;
+            background-color: #a8e6cf;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .river {
+            flex: 1.5;
+            background-color: #3498db;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 10px;
+        }
+        .river.right-side {
+            justify-content: flex-end;
+        }
+        .bank-title {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        .item-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        .item {
+            background-color: #ffffff;
+            border: 2px solid #7f8c8d;
+            border-radius: 8px;
+            padding: 10px 15px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.1s, background-color 0.2s;
+        }
+        .item:hover {
+            transform: scale(1.05);
+            background-color: #ecf0f1;
+        }
+        .farmer-item {
+            border-color: #e67e22;
+            background-color: #ffeaa7;
+        }
+        .boat {
+            width: 130px;
+            height: 70px;
+            background-color: #d35400;
+            border-radius: 0 0 35px 35px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            border: 2px solid #a04000;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: all 0.5s ease-in-out;
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+        }
+        button.btn {
+            padding: 10px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.2s;
+        }
+        .btn-cross { background-color: #27ae60; }
+        .btn-cross:hover { background-color: #219150; }
+        .btn-reset { background-color: #e74c3c; }
+        .btn-reset:hover { background-color: #c0392b; }
+        .message-box {
+            margin-top: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            height: 30px;
+        }
+        .text-danger { color: #e74c3c; }
+        .text-success { color: #27ae60; }
+    </style>
+</head>
+<body>
+
+    <h1>강 건너기 퍼즐 시뮬레이션</h1>
+    
+    <div class="rules">
+        <strong>규칙:</strong><br>
+        1. 농부는 배에 염소, 양배추, 늑대 중 <strong>단 1가지</strong>만 태울 수 있습니다.<br>
+        2. 농부 없이 <strong>[늑대와 염소]</strong> 또는 <strong>[염소와 양배추]</strong>만 남겨지면 게임에서 패배합니다.<br>
+        3. 요소를 클릭하여 배에 태우거나 내릴 수 있습니다.
+    </div>
+
+    <div class="game-container">
+        <!-- A 지역 (왼쪽) -->
+        <div class="bank" id="bankA">
+            <div class="bank-title">A 지역</div>
+            <div class="item-list" id="listA"></div>
+        </div>
+
+        <!-- 강 및 배 -->
+        <div class="river" id="river">
+            <div class="boat" id="boat"></div>
+        </div>
+
+        <!-- B 지역 (오른쪽) -->
+        <div class="bank" id="bankB">
+            <div class="bank-title">B 지역</div>
+            <div class="item-list" id="listB"></div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-cross" id="crossBtn" onclick="crossRiver()">강 건너기</button>
+        <button class="btn btn-reset" onclick="initGame()">다시 시작</button>
+    </div>
+
+    <div class="message-box" id="message"></div>
+
+    <script>
+        // 게임 상태 정의
+        const ITEMS = {
+            FARMER: { id: 'farmer', name: '👨‍🌾 농부', class: 'farmer-item' },
+            WOLF: { id: 'wolf', name: '🐺 늑대', class: '' },
+            GOAT: { id: 'goat', name: '🐐 염소', class: '' },
+            CABBAGE: { id: 'cabbage', name: '🥬 양배추', class: '' }
+        };
+
+        let state = {
+            bankA: [],
+            bankB: [],
+            boat: [],
+            boatPosition: 'A', // 'A' 또는 'B'
+            isGameOver: false
+        };
+
+        function initGame() {
+            state = {
+                bankA: [ITEMS.FARMER, ITEMS.WOLF, ITEMS.GOAT, ITEMS.CABBAGE],
+                bankB: [],
+                boat: [],
+                boatPosition: 'A',
+                isGameOver: false
+            };
+            document.getElementById('message').innerText = '';
+            document.getElementById('message').className = 'message-box';
+            document.getElementById('crossBtn').disabled = false;
+            render();
+        }
+
+        function render() {
+            const listA = document.getElementById('listA');
+            const listB = document.getElementById('listB');
+            const boatContainer = document.getElementById('boat');
+            const river = document.getElementById('river');
+
+            listA.innerHTML = '';
+            listB.innerHTML = '';
+            boatContainer.innerHTML = '';
+
+            // A지역 아이템 렌더링
+            state.bankA.forEach(item => {
+                listA.appendChild(createItemElement(item, () => moveToBoat(item, 'A')));
+            });
+
+            // B지역 아이템 렌더링
+            state.bankB.forEach(item => {
+                listB.appendChild(createItemElement(item, () => moveToBoat(item, 'B')));
+            });
+
+            // 배 내부 아이템 렌더링
+            state.boat.forEach(item => {
+                boatContainer.appendChild(createItemElement(item, () => removeFromBoat(item)));
+            });
+
+            // 배 위치 설정
+            if (state.boatPosition === 'A') {
+                river.classList.remove('right-side');
+            } else {
+                river.classList.add('right-side');
+            }
+        }
+
+        function createItemElement(item, onClick) {
+            const div = document.createElement('div');
+            div.className = `item ${item.class}`;
+            div.innerText = item.name;
+            div.onclick = onClick;
+            return div;
+        }
+
+        function moveToBoat(item, bank) {
+            if (state.isGameOver) return;
+            if (state.boatPosition !== bank) {
+                showMessage('배가 반대편에 있습니다.', 'danger');
+                return;
+            }
+            if (state.boat.length >= 2) {
+                showMessage('배에는 최대 2명(농부 포함)만 탈 수 있습니다.', 'danger');
+                return;
+            }
+
+            // 이동 처리
+            if (bank === 'A') {
+                state.bankA = state.bankA.filter(i => i.id !== item.id);
+            } else {
+                state.bankB = state.bankB.filter(i => i.id !== item.id);
+            }
+            state.boat.push(item);
+            clearMessage();
+            render();
+        }
+
+        function removeFromBoat(item) {
+            if (state.isGameOver) return;
+
+            state.boat = state.boat.filter(i => i.id !== item.id);
+            if (state.boatPosition === 'A') {
+                state.bankA.push(item);
+            } else {
+                state.bankB.push(item);
+            }
+            clearMessage();
+            render();
+        }
+
+        function crossRiver() {
+            if (state.isGameOver) return;
+
+            // 조건: 농부가 배에 탑승해 있어야 강을 건널 수 있음
+            const hasFarmer = state.boat.some(item => item.id === ITEMS.FARMER.id);
+            if (!hasFarmer) {
+                showMessage('농부가 배에 타야 강을 건널 수 있습니다!', 'danger');
+                return;
+            }
+
+            // 배 이동
+            state.boatPosition = state.boatPosition === 'A' ? 'B' : 'A';
+            render();
+
+            // 검증
+            checkGameState();
+        }
+
+        function checkGameState() {
+            const currentBank = state.boatPosition === 'A' ? state.bankB : state.bankA;
+            
+            const hasWolf = currentBank.some(i => i.id === ITEMS.WOLF.id);
+            const hasGoat = currentBank.some(i => i.id === ITEMS.GOAT.id);
+            const hasCabbage = currentBank.some(i => i.id === ITEMS.CABBAGE.id);
+
+            // 실패 조건 판단 (농부가 없는 쪽에 남아있는 대상들)
+            if (hasWolf && hasGoat) {
+                endGame(' 실패! 늑대가 염소를 잡아먹었습니다.', false);
+                return;
+            }
+            if (hasGoat && hasCabbage) {
+                endGame(' 실패! 염소가 양배추를 먹어치웠습니다.', false);
+                return;
+            }
+
+            // 성공 조건 판단 (모두 B 지역으로 이동)
+            if (state.bankB.length + (state.boatPosition === 'B' ? state.boat.length : 0) === 4) {
+                endGame('🎉 축하합니다! 모두 안전하게 강을 건넜습니다!', true);
+            }
+        }
+
+        function endGame(msg, isSuccess) {
+            state.isGameOver = true;
+            document.getElementById('crossBtn').disabled = true;
+            showMessage(msg, isSuccess ? 'success' : 'danger');
+        }
+
+        function showMessage(msg, type) {
+            const msgBox = document.getElementById('message');
+            msgBox.innerText = msg;
+            msgBox.className = `message-box text-${type}`;
+        }
+
+        function clearMessage() {
+            const msgBox = document.getElementById('message');
+            msgBox.innerText = '';
+        }
+
+        // 초기화 실행
+        initGame();
+    </script>
+</body>
+</html>
