@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>강 건너기 시뮬레이션 (반응형)</title>
+    <title>강 건너기 시뮬레이션</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -46,13 +46,12 @@
             line-height: 1.4;
         }
 
-        /* 메인 게임 판 (PC 및 기본 Layout) */
         .game-container {
             display: flex;
             flex-direction: row;
             width: 100%;
             max-width: 800px;
-            min-height: 280px;
+            min-height: 250px;
             border: 2px solid #2980b9;
             border-radius: 12px;
             overflow: hidden;
@@ -80,19 +79,8 @@
         }
         .river.right-side { justify-content: flex-end; }
 
-        .bank-title {
-            font-weight: bold;
-            font-size: 16px;
-            margin-bottom: 10px;
-            color: #2c3e50;
-        }
-        .item-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            justify-content: center;
-            width: 100%;
-        }
+        .bank-title { font-weight: bold; font-size: 16px; margin-bottom: 10px; color: #2c3e50; }
+        .item-list { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: 100%; }
         .item {
             background-color: #ffffff;
             border: 2px solid #7f8c8d;
@@ -157,25 +145,35 @@
         .text-danger { color: #e74c3c; }
         .text-success { color: #27ae60; }
 
-        /* 모바일용 화면 레이아웃 (세로 배치) */
+        /* 이동 기록 영역 */
+        .info-panel {
+            width: 100%;
+            max-width: 800px;
+            margin-top: 15px;
+        }
+        .panel-box {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .panel-title { font-weight: bold; font-size: 15px; color: #333; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+        .history-list {
+            font-size: 13px;
+            color: #444;
+            line-height: 1.6;
+            max-height: 180px;
+            overflow-y: auto;
+            padding-left: 20px;
+        }
+
         @media (max-width: 600px) {
             body { padding: 10px; }
             .game-container { flex-direction: column; }
-            .river {
-                flex-direction: column;
-                justify-content: flex-start !important;
-                align-items: center;
-                min-height: 100px;
-            }
+            .river { flex-direction: column; justify-content: flex-start !important; align-items: center; min-height: 100px; }
             .river.right-side { justify-content: flex-end !important; }
-            .boat {
-                width: 100%;
-                max-width: 200px;
-                height: 50px;
-                border-radius: 8px;
-            }
+            .boat { width: 100%; max-width: 200px; height: 50px; border-radius: 8px; }
             .item { padding: 6px 10px; font-size: 13px; }
-            .dashboard { gap: 10px; font-size: 14px; }
         }
     </style>
 </head>
@@ -216,6 +214,16 @@
 
     <div class="message-box" id="message"></div>
 
+    <!-- 이동 기록 패널 -->
+    <div class="info-panel">
+        <div class="panel-box">
+            <div class="panel-title">📜 나의 이동 기록</div>
+            <ol class="history-list" id="historyList">
+                <li style="list-style:none; color:#888;">이동 기록이 여기에 표시됩니다.</li>
+            </ol>
+        </div>
+    </div>
+
     <script>
         const ITEMS = {
             FARMER: { id: 'farmer', name: '👨‍🌾 농부', class: 'farmer-item' },
@@ -224,18 +232,19 @@
             CABBAGE: { id: 'cabbage', name: '🥬 양배추', class: '' }
         };
 
-        let state = { bankA: [], bankB: [], boat: [], boatPosition: 'A', isGameOver: false, moves: 0 };
+        let state = { bankA: [], bankB: [], boat: [], boatPosition: 'A', isGameOver: false, moves: 0, history: [] };
         let bestRecord = null;
 
         function initGame() {
             state = {
                 bankA: [ITEMS.FARMER, ITEMS.WOLF, ITEMS.GOAT, ITEMS.CABBAGE],
-                bankB: [], boat: [], boatPosition: 'A', isGameOver: false, moves: 0
+                bankB: [], boat: [], boatPosition: 'A', isGameOver: false, moves: 0, history: []
             };
             document.getElementById('moveCount').innerText = state.moves;
             document.getElementById('message').innerText = '';
             document.getElementById('message').className = 'message-box';
             document.getElementById('crossBtn').disabled = false;
+            document.getElementById('historyList').innerHTML = '<li style="list-style:none; color:#888;">이동 기록이 여기에 표시됩니다.</li>';
             render();
         }
 
@@ -304,11 +313,28 @@
                 return;
             }
 
+            const fromStr = state.boatPosition === 'A' ? 'A → B' : 'B → A';
+            const passenger = state.boat.find(i => i.id !== ITEMS.FARMER.id);
+            const passengerText = passenger ? ` [함께: ${passenger.name}]` : ' [농부 혼자]';
+
             state.boatPosition = state.boatPosition === 'A' ? 'B' : 'A';
             state.moves++;
             document.getElementById('moveCount').innerText = state.moves;
+
+            addHistory(`${fromStr} 이동${passengerText}`);
+
             render();
             checkGameState();
+        }
+
+        function addHistory(text) {
+            const historyList = document.getElementById('historyList');
+            if (state.moves === 1) historyList.innerHTML = '';
+            
+            const li = document.createElement('li');
+            li.innerText = text;
+            historyList.appendChild(li);
+            historyList.scrollTop = historyList.scrollHeight;
         }
 
         function checkGameState() {
